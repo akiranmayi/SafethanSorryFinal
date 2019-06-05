@@ -30,6 +30,7 @@ import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
@@ -345,7 +346,6 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         reportLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(RoutingActivity.this,"Report", Toast.LENGTH_LONG).show();
                 Intent intent = new Intent(RoutingActivity.this, GoogleSignInActivity.class);
                 startActivity(intent);
 
@@ -720,7 +720,6 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                 hashMapMarker.remove("destination");
                 addAllMarkers();
                 destMarker = null;
-
             }
 
             if (destMarker == null) {
@@ -824,6 +823,10 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         mMap = googleMap;
         Log.d("mylog", "Added Markers");
 
+        boolean success=googleMap.setMapStyle(
+                MapStyleOptions.loadRawResourceStyle(
+                        this, R.raw.style_json));
+
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(this,
                     Manifest.permission.ACCESS_FINE_LOCATION)
@@ -890,7 +893,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         mMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
             @Override
             public void onPolylineClick(Polyline polyline) {
-                polyline.setColor(Color.MAGENTA);
+                polyline.setColor(R.color.red);
 
 
                 //Getting the waypoints for navigation
@@ -936,51 +939,152 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         });
 
 
-        int i, maxIndex = 0;
 
         Log.d("Number of routes", "before getNumber" + count);
 
-        try {
-            lock.lock();
+        Task1 task1 = new Task1(poly,count);
+        task1.execute();
+
+    }
+
+
+
+    public class Task1 extends AsyncTask<Void ,Void,Void>
+    {
+        List<PolylineOptions> polylineOptions;
+        int count;
+        public Task1(List<PolylineOptions> polylineOptions,int count)
+        {
+            this. polylineOptions = polylineOptions;
+            this.count=count;
         }
-        catch(InterruptedException ie){
-            Log.d("Exception", "InterruptedException has occured" );
+        @Override
+        protected Void doInBackground(Void... params) {
+
+            Log.d("Number of routes", "in task 1" + count);
+
+            int i=0;
+            int j=0;
+            int k=0;
+
+            for (i = 0; i < count; i++) {
+
+                estCount[i] = -1;
+
+                if (polylineOptions.get(i) != null) {
+
+                    counter.reset();
+                    LatLng currentPoint;
+                    List<LatLng> points = polylineOptions.get(i).getPoints();
+                    counter.count = 0;
+                    int pointSize=points.size();
+                    Log.d("Counter reset", "counterVal = "+counter.count);
+
+                    //for (j = 0; j < pointSize; j+=7) {
+                    for(j=0;j<mPlaceType.length;j++) {
+                        for (k = 0; k < pointSize; k = k + 7) {
+                            currentPoint = (LatLng) points.get(k);
+                            StringBuilder sb1 = new StringBuilder("https://maps.googleapis.com/maps/api/place/nearbysearch/json?");
+                            sb1.append("location=" + currentPoint.latitude + "," + currentPoint.longitude);
+                            sb1.append("&radius=50");
+                            sb1.append("&types=" + mPlaceType[j]);   //Only for hospitals
+                            sb1.append("&sensor=true");
+                            sb1.append("&key=" + getString(R.string.google_maps_key));
+                            sb1.append("&opennow=true");
+
+
+                            String data = "";
+                            InputStream iStream = null;
+                            HttpURLConnection urlConnection = null;
+                            try {
+                                URL url = new URL(sb1.toString());
+
+                                // Creating an http connection to communicate with url
+                                urlConnection = (HttpURLConnection) url.openConnection();
+
+                                // Connecting to url
+                                urlConnection.connect();
+
+                                // Reading data from url
+                                iStream = urlConnection.getInputStream();
+
+                                BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
+
+                                StringBuffer sb = new StringBuffer();
+
+                                String line = "";
+                                while ((line = br.readLine()) != null) {
+                                    sb.append(line);
+                                }
+
+                                data = sb.toString();
+
+                                br.close();
+                                iStream.close();
+                                urlConnection.disconnect();
+
+                            } catch (Exception e) {
+                                Log.d("Exception dwnloadng url", e.toString());
+                            }
+
+                            List<HashMap<String, String>> places = null;
+                            PlaceJSONParser placeJsonParser = new PlaceJSONParser();
+                            JSONObject jObject;
+                            try {
+                                jObject = new JSONObject(data);
+
+                                /** Getting the parsed data as a List construct */
+                                places = placeJsonParser.parse(jObject);
+
+                            } catch (Exception e) {
+                                Log.d("Exception", e.toString());
+                            }
+
+                            counter.add(places.size());
+
+                        }
+                    }
+                    estCount[i] = counter.count;
+                    Log.d(" InParseNonUI ", " value:  " + estCount[i] + " in " + i + " counter= " + counter.count);
+                    counter.count = 0;
+
+                }
+
+            }
+            return null;
         }
 
-        for (i = 0; i < count; i++) {
-            estCount[i] = -1;
-            if (poly.get(i) != null) {
-                getNumberOfEstablishmentsForRoute((PolylineOptions) poly.get(i), i);
+        // Executed after the complete execution of doInBackground() method
+        @Override
+        protected void onPostExecute(Void param) {
+
+            int maxIndex=0;
+            for (int i = 0; i < count; i++) {
                 if (estCount[maxIndex] < estCount[i])
                     maxIndex = i;
 
             }
-            if(i == count-1)
-                lock.unlock();
-        }
 
-        if (!lock.isLocked){
-            for (i = 0; i < count; i++) {
+            for(int i = 0; i < count; i++) {
                 if (maxIndex != i) {
-
-                    PolylineOptions polylineOptions = poly.get(i);
-                    polylineOptions.color(Color.RED);
-                    polylineOptions.width(9);
-                    Polyline polyline = mMap.addPolyline(polylineOptions);
+                    PolylineOptions polylineOptions1 = polylineOptions.get(i);
+                    polylineOptions1.color(Color.RED);
+                    polylineOptions1.width(9);
+                    Polyline polyline = mMap.addPolyline(polylineOptions1);
                     polyline.setClickable(true);
                 }
-
+                Log.d("Not max", "Not max value: "+estCount[i]);
             }
 
-        PolylineOptions polylineOptions = poly.get(maxIndex);
-        polylineOptions.color(Color.BLUE);
-        polylineOptions.width(13);
-        Polyline polyline = mMap.addPolyline(polylineOptions);
-        polyline.setClickable(true);
+            PolylineOptions polylineOptions1 = polylineOptions.get(maxIndex);
+            polylineOptions1.color(Color.BLUE);
+            polylineOptions1.width(13);
+            Polyline polyline = mMap.addPolyline(polylineOptions1);
+            polyline.setClickable(true);
+            Log.d("Max: ", "Max value: "+estCount[maxIndex]);
+        }
 
     }
-
-}
 
     /**
      * Start: Methods and classes for getting nearby locations along a route

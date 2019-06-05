@@ -212,17 +212,17 @@ public class GoogleSignInActivity extends BaseActivity implements
 
         String time;
         if (cursor.moveToFirst()){
-            do{
-                time = cursor.getString(cursor.getColumnIndex("COL2"));
-                source = cursor.getString(cursor.getColumnIndex("COL3"));
-                srcLatLng = cursor.getString(cursor.getColumnIndex("COL4"));
-                destination = cursor.getString(cursor.getColumnIndex("COL5"));
-                destLatLng = cursor.getString(cursor.getColumnIndex("COL6"));
-                waypoints = cursor.getString(cursor.getColumnIndex("COL7"));
+                //time = cursor.getString(cursor.getColumnIndex("time"));
+                source = cursor.getString(cursor.getColumnIndex("origin"));
+                srcLatLng = cursor.getString(cursor.getColumnIndex("originLatLng"));
+                destination = cursor.getString(cursor.getColumnIndex("destination"));
+                destLatLng = cursor.getString(cursor.getColumnIndex("destinationLatLng"));
+                waypoints = cursor.getString(cursor.getColumnIndex("waypoints"));
                 Toast.makeText(GoogleSignInActivity.this,
-                        "Rate your trip from "+source+" to "+destination + " at "+time,
+                        "Rate your trip from "+source+" to "+destination,
                         Toast.LENGTH_LONG).show();
-            }while(cursor.moveToNext());
+                time = "";
+
         }
         cursor.close();
 
