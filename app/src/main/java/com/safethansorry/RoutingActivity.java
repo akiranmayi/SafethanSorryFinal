@@ -1,9 +1,7 @@
-package com.example.routing;
+package com.safethansorry;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -13,24 +11,18 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.View;
-import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ListAdapter;
-import android.widget.ListView;
 
 
-import com.example.routing.RoutingHelpers.FetchURL;
+import com.safethansorry.RoutingHelpers.FetchURL;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
@@ -47,8 +39,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.widget.Filter;
 import android.widget.Filterable;
-import android.widget.ListAdapter;
-import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -62,12 +52,9 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.location.LocationListener;
 
 
-import com.example.routing.RoutingHelpers.TaskLoadedCallback;
+import com.safethansorry.RoutingHelpers.TaskLoadedCallback;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-
-import java.sql.Timestamp;
-import java.util.Date;
 
 
 import org.json.JSONArray;
@@ -818,7 +805,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         return true;
     }
 
-    @Override
+   /* @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         Log.d("mylog", "Added Markers");
@@ -838,8 +825,26 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
         }
-    }
+    }*/
 
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        Log.d("mylog", "Added Markers");
+
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED) {
+                buildGoogleApiClient();
+                mMap.setMyLocationEnabled(true);
+            }
+        } else {
+            buildGoogleApiClient();
+            mMap.setMyLocationEnabled(true);
+        }
+    }
 
     protected synchronized void buildGoogleApiClient() {
         mGoogleApiClient = new GoogleApiClient.Builder(this)
@@ -893,7 +898,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         mMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
             @Override
             public void onPolylineClick(Polyline polyline) {
-                polyline.setColor(R.color.red);
+                polyline.setColor(Color.MAGENTA);
 
 
                 //Getting the waypoints for navigation
@@ -942,30 +947,35 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
 
         Log.d("Number of routes", "before getNumber" + count);
 
+
         Task1 task1 = new Task1(poly,count);
         task1.execute();
+
+
+
 
     }
 
 
 
-    public class Task1 extends AsyncTask<Void ,Void,Void>
-    {
+
+    public class Task1 extends AsyncTask<Void ,Void,Void> {
         List<PolylineOptions> polylineOptions;
         int count;
-        public Task1(List<PolylineOptions> polylineOptions,int count)
-        {
-            this. polylineOptions = polylineOptions;
-            this.count=count;
+
+        public Task1(List<PolylineOptions> polylineOptions, int count) {
+            this.polylineOptions = polylineOptions;
+            this.count = count;
         }
+
         @Override
         protected Void doInBackground(Void... params) {
 
             Log.d("Number of routes", "in task 1" + count);
 
-            int i=0;
-            int j=0;
-            int k=0;
+            int i = 0;
+            int j = 0;
+            int k = 0;
 
             for (i = 0; i < count; i++) {
 
@@ -977,12 +987,13 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                     LatLng currentPoint;
                     List<LatLng> points = polylineOptions.get(i).getPoints();
                     counter.count = 0;
-                    int pointSize=points.size();
-                    Log.d("Counter reset", "counterVal = "+counter.count);
+                    int pointSize = points.size();
+                    Log.d("Counter reset", "counterVal = " + counter.count);
 
                     //for (j = 0; j < pointSize; j+=7) {
-                    for(j=0;j<mPlaceType.length;j++) {
-                        for (k = 0; k < pointSize; k = k + 7) {
+
+                    for (k = 0; k < pointSize; k = k + 7) {
+                        for (j = 0; j < mPlaceType.length; j++) {
                             currentPoint = (LatLng) points.get(k);
                             StringBuilder sb1 = new StringBuilder("https://maps.googleapis.com/maps/api/place/nearbysearch/json?");
                             sb1.append("location=" + currentPoint.latitude + "," + currentPoint.longitude);
@@ -1025,6 +1036,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
 
                             } catch (Exception e) {
                                 Log.d("Exception dwnloadng url", e.toString());
+                                continue;
                             }
 
                             List<HashMap<String, String>> places = null;
@@ -1033,7 +1045,9 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                             try {
                                 jObject = new JSONObject(data);
 
+
                                 /** Getting the parsed data as a List construct */
+
                                 places = placeJsonParser.parse(jObject);
 
                             } catch (Exception e) {
@@ -1051,6 +1065,8 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                 }
 
             }
+
+
             return null;
         }
 
@@ -1058,14 +1074,14 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         @Override
         protected void onPostExecute(Void param) {
 
-            int maxIndex=0;
+            int maxIndex = 0;
             for (int i = 0; i < count; i++) {
                 if (estCount[maxIndex] < estCount[i])
                     maxIndex = i;
 
             }
 
-            for(int i = 0; i < count; i++) {
+            for (int i = 0; i < count; i++) {
                 if (maxIndex != i) {
                     PolylineOptions polylineOptions1 = polylineOptions.get(i);
                     polylineOptions1.color(Color.RED);
@@ -1073,7 +1089,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                     Polyline polyline = mMap.addPolyline(polylineOptions1);
                     polyline.setClickable(true);
                 }
-                Log.d("Not max", "Not max value: "+estCount[i]);
+                Log.d("Not max", "Not max value: " + estCount[i]);
             }
 
             PolylineOptions polylineOptions1 = polylineOptions.get(maxIndex);
@@ -1081,172 +1097,22 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
             polylineOptions1.width(13);
             Polyline polyline = mMap.addPolyline(polylineOptions1);
             polyline.setClickable(true);
-            Log.d("Max: ", "Max value: "+estCount[maxIndex]);
+            Log.d("Max: ", "Max value: " + estCount[maxIndex]);
+
+
+
         }
 
+
+
     }
+
 
     /**
      * Start: Methods and classes for getting nearby locations along a route
      */
 
 
-
-    void getNumberOfEstablishmentsForRoute(PolylineOptions polylineOptions, int index) {
-        counter.reset();
-        getDirection.setVisibility(View.INVISIBLE);
-        int i;
-        LatLng currentPoint;
-        List<LatLng> points = polylineOptions.getPoints();
-
-        counter.reset();
-        counter.count = 0;
-        Log.d("Counter reset", "counterVal = "+counter.count);
-        //for (j = 0; j < mPlaceType.length; j++){
-            for (i = 0; i < points.size(); i = i + 6) {
-                currentPoint = (LatLng) points.get(i);
-                StringBuilder sb = new StringBuilder("https://maps.googleapis.com/maps/api/place/nearbysearch/json?");
-                sb.append("location=" + currentPoint.latitude + "," + currentPoint.longitude);
-                sb.append("&radius=50");
-                sb.append("&types=" + mPlaceType[i]);   //Only for hospitals
-                sb.append("&sensor=true");
-                sb.append("&key=" + getString(R.string.google_maps_key));                                                 /** API KEY **/
-                sb.append("&opennow=true");
-
-                // Creating a new non-ui thread task to download json data
-                PlacesTaskNonUI placesTaskNonUI = new PlacesTaskNonUI(index);
-
-                // Invokes the "doInBackground()" method of the class PlaceTask
-                placesTaskNonUI.execute(sb.toString());
-                if(i == points.size()-1) {
-                    counter.count = 0;
-
-                }
-
-            }
-
-
-        }
-    //}
-
-
-        /** A method to download json data from url */
-        private String downloadUrlNonUI (String strUrl) throws IOException {
-            String data = "";
-            InputStream iStream = null;
-            HttpURLConnection urlConnection = null;
-            try {
-                URL url = new URL(strUrl);
-
-                // Creating an http connection to communicate with url
-                urlConnection = (HttpURLConnection) url.openConnection();
-
-                // Connecting to url
-                urlConnection.connect();
-
-                // Reading data from url
-                iStream = urlConnection.getInputStream();
-
-                BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
-
-                StringBuffer sb = new StringBuffer();
-
-                String line = "";
-                while ((line = br.readLine()) != null) {
-                    sb.append(line);
-                }
-
-                data = sb.toString();
-
-                br.close();
-
-            } catch (Exception e) {
-                Log.d("Exception dwnloadng url", e.toString());
-            } finally {
-                iStream.close();
-                urlConnection.disconnect();
-            }
-
-            return data;
-        }
-
-        /** A class, to download Google Places */
-        private class PlacesTaskNonUI extends AsyncTask<String, Integer, String> {
-            int index;
-
-            public PlacesTaskNonUI(int i ){
-                this.index = i;
-            }
-
-            String data = null;
-
-            // Invoked by execute() method of this object
-            @Override
-            protected String doInBackground(String... url) {
-                try {
-                    data = downloadUrlNonUI(url[0]);
-                } catch (Exception e) {
-                    Log.d("Background Task", e.toString());
-                }
-                return data;
-            }
-
-            // Executed after the complete execution of doInBackground() method
-            @Override
-            protected void onPostExecute(String result) {
-                ParserTaskNonUI parserTaskNonUI = new ParserTaskNonUI(index);
-
-                // Start parsing the Google places in JSON format
-                // Invokes the "doInBackground()" method of the class ParseTask
-                parserTaskNonUI.execute(result);
-
-
-            }
-
-
-        }
-
-        /** A class to parse the Google Places in JSON format */
-        private class ParserTaskNonUI extends AsyncTask<String, Integer, List<HashMap<String, String>>> {
-            JSONObject jObject;
-            int index;
-
-            public ParserTaskNonUI(int i ){
-                this.index = i;
-            }
-
-            // Invoked by execute() method of this object
-            @Override
-            protected List<HashMap<String, String>> doInBackground(String... jsonData) {
-
-                List<HashMap<String, String>> places = null;
-                PlaceJSONParser placeJsonParser = new PlaceJSONParser();
-
-                try {
-                    jObject = new JSONObject(jsonData[0]);
-
-                    /** Getting the parsed data as a List construct */
-                    places = placeJsonParser.parse(jObject);
-
-                } catch (Exception e) {
-                    Log.d("Exception", e.toString());
-                }
-
-                return places;
-            }
-
-            // Executed after the complete execution of doInBackground() method
-            @Override
-            public void onPostExecute(List<HashMap<String, String>> list) {
-
-                counter.add(list.size());
-                estCount[index] = counter.count;
-                Log.d("InParserNonUI", "value: " + estCount[index] + " in " + index + "counter="+ counter.count);
-
-            }
-
-
-        }
 
 
     /**
