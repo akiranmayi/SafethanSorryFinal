@@ -65,6 +65,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -73,6 +74,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.StringTokenizer;
 
 
 import android.widget.AdapterView.OnItemClickListener;
@@ -104,6 +106,9 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
     Lock lock;
     Counter counter;
     Integer[] estCount;
+
+    Double[] rating;
+    String[] azureJSON;
     //ListView nearbyHospList, nearbyPoliceList;
     //ArrayList<String> nearbyHospArray, nearbyPoliceArray;
     //HashMap<String, LatLng> hospitalNameToLatLngMap, policeNameToLatLngMap;
@@ -132,6 +137,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         /** Testing firebase **/
 
         testFirebase();
+
 
 
         sourceAutoCompView = findViewById(R.id.sourceAutoCompleteTextView);
@@ -575,6 +581,9 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
             resultList = new ArrayList(predsJsonArray.length());
             for (int i = 0; i < predsJsonArray.length(); i++) {
                 System.out.println(predsJsonArray.getJSONObject(i).getString("description"));
+                /*if(currLoc==""){
+                    currLoc=predsJsonArray.getJSONObject(i).getString("description");
+                }*/
                 System.out.println("============================================================");
                 resultList.add(predsJsonArray.getJSONObject(i).getString("description"));
             }
@@ -876,14 +885,38 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         return url;
     }
 
-    public void AddData(String source, Marker sourceMark, String dest, Marker destMark, String waypoints) {
+    public void AddData(String src, Marker sourceMark, String dest, Marker destMark, String waypoints) {
         String sourcePoint = "" + sourceMark.getPosition().latitude + "," + sourceMark.getPosition().longitude;
         String destPoint = "" + destMark.getPosition().latitude + "," + destMark.getPosition().longitude;
-        boolean insertData = mDatabaseHelper.addData(source, sourcePoint, dest, destPoint, waypoints);
-
+        boolean insertData = mDatabaseHelper.addData(src, sourcePoint, dest, destPoint, waypoints);
+        Log.d("In AddDataFunc: ","Source: "+src+" Destination : "+dest);
         if (!insertData) {
             toastMessage("Something went wrong");
         }
+    }
+
+    public String SendJSONData(String source, Marker sourceMark, String dest, Marker destMark, String waypoints) {
+
+        Log.d("SendJSONData ", "Source : "+source);
+        Log.d("SendJSONData ", "Destination : "+dest);
+        String sourcePoint="";
+        String destPoint="";
+        try {
+            sourcePoint = "" + sourceMark.getPosition().latitude + "," + sourceMark.getPosition().longitude;
+        }catch(Exception e) {
+            Log.d("SendJSONData ", "Source marker not found");
+        }
+        try {
+             destPoint = "" + destMark.getPosition().latitude + "," + destMark.getPosition().longitude;
+        }catch(Exception e) {
+            Log.d("SendJSONData ", "Destination marker not found");
+        }
+            long timemillis = System.currentTimeMillis();
+
+
+
+       String json= " {\"Inputs\": {\"input1\": {\"ColumnNames\": [\"|\",\"|__Q1\",\"|__Q2\",\"|__Q3\",\"|__Q4\",\"|__Q5\",\"|__dest\",\"|__destLatLng\",\"|__origin\",\"|__originLatLng\",\"|__timestamp\",\"|__waypoints\"],\"Values\": [[\"\",\"0\",\"0\",\"0\",\"0\",\"0\",\""+dest+"\",\""+destPoint+"\",\""+source+"\",\""+sourcePoint+"\",\""+timemillis+"\",\""+waypoints+"\"]]}},\"GlobalParameters\": {}}";
+       return json;
     }
 
 
@@ -927,13 +960,15 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
 
                 if (sourceMarker != null && destMarker != null) {
                     AddData(source, sourceMarker, destination, destMarker, waypointStr);
+                    Log.d("Adding data ","source: "+source+ "destination: "+destination);
                     String uri = "https://www.google.com/maps/dir/?api=1&origin=" + sourceMarker.getPosition().latitude + "," + sourceMarker.getPosition().longitude + "&destination=" + latitude + "," + longitude + "&waypoints=" + waypointStr + "&travelmode=driving&dir_action=navigate";
                     Intent intent = new Intent(android.content.Intent.ACTION_VIEW, Uri.parse(uri));
                     intent.setClassName("com.google.android.apps.maps", "com.google.android.maps.MapsActivity");
                     startActivity(intent);
                 }
                 if (sourceMarker == null && destMarker != null) {
-                    AddData(source, mCurrLocationMarker, destination, destMarker, waypointStr);
+                    AddData(currLoc, mCurrLocationMarker, destination, destMarker, waypointStr);
+                    Log.d("Adding data ","source: "+currLoc+ "destination: "+destination);
                     String uri = "https://www.google.com/maps/dir/?api=1&origin=" + mCurrLocationMarker.getPosition().latitude + "," + mCurrLocationMarker.getPosition().longitude + "&destination=" + latitude + "," + longitude + "&waypoints=" + waypointStr + "&travelmode=driving&dir_action=navigate";
                     Intent intent = new Intent(android.content.Intent.ACTION_VIEW, Uri.parse(uri));
                     intent.setClassName("com.google.android.apps.maps", "com.google.android.maps.MapsActivity");
@@ -941,17 +976,58 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                 }
 
             }
+
+
         });
 
+        rating = new Double[count];
+        azureJSON = new String[count];
 
+        for(int i=0;i<count;i++) {
+            List<LatLng> listWay = poly.get(i).getPoints();
+            int iter, wayIndex = 0;
+
+            String[] waypoints = new String[8];
+            LatLng point;
+            int interval = listWay.size() / 9;
+            for (iter = interval; iter < listWay.size(); iter += interval) {
+                point = listWay.get(iter);
+                waypoints[wayIndex] = "" + point.latitude + "," + point.longitude;
+                wayIndex++;
+                if (wayIndex == 8)
+                    break;
+            }
+
+            String waypointStr = "";
+            int iWay = 1;
+            waypointStr += waypoints[0];
+            while (iWay < waypoints.length) {
+                waypointStr += "|" + waypoints[iWay];
+                iWay++;
+            }
+
+
+            if (sourceMarker != null && destMarker != null) {
+                azureJSON[i] = SendJSONData(source, sourceMarker, destination, destMarker, waypointStr);
+                Log.d("In Task1", "json string " + i + " is: " + azureJSON[i]);
+
+            } else if (sourceMarker == null && destMarker != null) {
+                azureJSON[i] = SendJSONData(currLoc, mCurrLocationMarker, destination, destMarker, waypointStr);
+
+                Log.d("In Task1", "json string " + i + " is: " + azureJSON[i]);
+            }
+
+            Task2 task2 = new Task2("https://ussouthcentral.services.azureml.net/workspaces/e0b22c923a8545828da97e46ea044c49/services/00407f9c723d490ba9403c4d83ac962c/execute?api-version=2.0&details=true", "JsWXPIL2xnKmRC9beFEamgevGZjz9KDn/0AW0/ssD7Bf0LiXHul9Y87Y96SvNxi1k5unIXJEuQytJOG2JbXvEg==", azureJSON[i], i,poly,count);
+            task2.execute();
+
+
+        }
 
         Log.d("Number of routes", "before getNumber" + count);
 
 
         Task1 task1 = new Task1(poly,count);
         task1.execute();
-
-
 
 
     }
@@ -991,8 +1067,9 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
                     Log.d("Counter reset", "counterVal = " + counter.count);
 
                     //for (j = 0; j < pointSize; j+=7) {
-
+                    int pointSizeInterval = (pointSize/2) -1;
                     for (k = 0; k < pointSize; k = k + 7) {
+                    //for (k = 0; k < pointSize; k = k + pointSizeInterval) {
                         for (j = 0; j < mPlaceType.length; j++) {
                             currentPoint = (LatLng) points.get(k);
                             StringBuilder sb1 = new StringBuilder("https://maps.googleapis.com/maps/api/place/nearbysearch/json?");
@@ -1074,7 +1151,7 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
         @Override
         protected void onPostExecute(Void param) {
 
-            int maxIndex = 0;
+            /*int maxIndex = 0;
             for (int i = 0; i < count; i++) {
                 if (estCount[maxIndex] < estCount[i])
                     maxIndex = i;
@@ -1100,12 +1177,166 @@ public class RoutingActivity extends AppCompatActivity implements OnItemClickLis
             Log.d("Max: ", "Max value: " + estCount[maxIndex]);
 
 
+            }*/
+            double maxRating = 0;
+            int maxestablishmentsCount = 0;
+            int maxIndex = 0;
+
+            for (int i = 0; i < count; i++) {
+                if (rating[i] > maxRating)
+                    maxRating = rating[i];
+            }
+
+            for (int i = 0; i < count; i++) {
+                if (rating[i] == maxRating) {
+                    if (estCount[i] > maxestablishmentsCount) {
+                        maxestablishmentsCount = estCount[i];
+                        maxIndex = i;
+                    }
+                }
+
+            }
+
+            Log.d("Final ", "Best route rating: " + rating[maxIndex] + " establishment count: " + estCount[maxIndex]);
+            for (int i = 0; i < count; i++) {
+                if (maxIndex != i) {
+                    PolylineOptions polylineOptions1 = polylineOptions.get(i);
+                    polylineOptions1.color(Color.RED);
+                    polylineOptions1.width(9);
+                    Polyline polyline = mMap.addPolyline(polylineOptions1);
+                    polyline.setClickable(true);
+                }
+                Log.d("Not max", "Not max value: " + estCount[i]);
+            }
+
+            PolylineOptions polylineOptions1 = polylineOptions.get(maxIndex);
+            polylineOptions1.color(Color.BLUE);
+            polylineOptions1.width(13);
+            Polyline polyline = mMap.addPolyline(polylineOptions1);
+            polyline.setClickable(true);
+            Log.d("Max: ", "Max value: " + estCount[maxIndex]);
+
+
+        }
+    }
+
+
+    public class Task2 extends AsyncTask<Void ,Void,Void> {
+        String endPointURL;
+        String key;
+        String requestBody;
+        int index;
+        List<PolylineOptions> polylineOptions;
+        int count;
+
+
+        public Task2(String endPointURL,String key,String requestBody,int index,List<PolylineOptions> polylineOptions, int count) {
+            this.endPointURL = endPointURL;
+            this.key = key;
+            this.requestBody=requestBody;
+            this.index = index;
+            this.polylineOptions = polylineOptions;
+            this.count = count;
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+
+            try {
+                URL u = new URL(endPointURL);
+                HttpURLConnection conn = (HttpURLConnection) u.openConnection();
+
+                conn.setRequestProperty("Authorization", "Bearer " + key);
+                conn.setRequestProperty("Content-Length", Integer.toString(requestBody.length()));
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setRequestMethod("POST");
+
+
+                conn.setDoOutput(true);
+                OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+
+                wr.write(requestBody);
+                wr.close();
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+                String decodedString;
+                StringBuffer responseString = new StringBuffer();
+
+                while ((decodedString = in.readLine()) != null) {
+                    responseString.append(decodedString);
+                }
+
+                Log.d("In Task2: ","Response: "+responseString);
+
+                String s = new String(responseString);
+
+               JSONObject jsonObject  = new JSONObject(responseString.toString());
+
+               JSONObject jsonObject1 = jsonObject.getJSONObject("Results");
+               Log.d("First JSON: ",jsonObject.toString());
+
+               JSONObject jsonObject2 = jsonObject1.getJSONObject("output1");
+                Log.d("Second JSON: ",jsonObject1.toString());
+
+               JSONObject jsonObject3 = jsonObject2.getJSONObject("value");
+                Log.d("Third JSON: ",jsonObject2.toString());
+
+               JSONArray jsonArray = jsonObject3.optJSONArray("Values");
+                Log.d("JSON Array 1: ",jsonObject3.toString());
+
+               JSONArray jsonArray1 = jsonArray.optJSONArray(0);
+                Log.d("JSON Array 2: ",jsonArray1.toString());
+
+               double max=0;
+               int maxIndex=0;
+               double prob=0;
+               for(int i=7;i<jsonArray1.length()-1;i++){
+                   prob=jsonArray1.optDouble(i);
+                    if(prob>max) {
+                        max = prob;
+                        maxIndex=i;
+                    }
+               }
+
+               switch (maxIndex){
+                   case 7: rating[index]=2.5;break;
+                   case 8: rating[index]=4.0;break;
+                   case 9: rating[index]=4.5;break;
+                   case 10: rating[index]=5.0;break;
+
+               }
+
+               Log.d("JSON response ","rating at index "+index+" : "+rating[index]);
+
+
+
+
+            }catch(Exception e){
+                Log.d("In Task2: ","Exception has occured");
+            }
+
+
+
+            return null;
+        }
+
+        // Executed after the complete execution of doInBackground() method
+        @Override
+        protected void onPostExecute(Void param) {
+
+
 
         }
 
 
 
     }
+
+
+
+
 
 
     /**

@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
+import android.widget.Toast;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -53,6 +54,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         contentValues.put(COL6, destPoint);
         contentValues.put(COL7, waypoints);
 
+        Log.d("In addDataFunc: ","source: "+source+" destination: "+dest);
         Log.d(TAG, "addData: Adding route" + " to " + TABLE_NAME);
 
         long result = db.insert(TABLE_NAME, null, contentValues);

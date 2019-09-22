@@ -209,12 +209,14 @@ public class GoogleSignInActivity extends BaseActivity implements
     {
         setContentView(R.layout.feedback_form);
         mDatabaseHelper = new DatabaseHelper(this);
-        Cursor cursor=mDatabaseHelper.getLatestItem();
-
+        //Cursor cursor=mDatabaseHelper.getLatestItem();
+        Cursor cursor=mDatabaseHelper.getData();
         String time;
-        if (cursor.moveToFirst()){
+        //if (cursor.moveToFirst()){
+        if(cursor.moveToLast()){
                 //time = cursor.getString(cursor.getColumnIndex("time"));
                 source = cursor.getString(cursor.getColumnIndex("origin"));
+                Log.d("giveFeedback: "," source : "+source);
                 srcLatLng = cursor.getString(cursor.getColumnIndex("originLatLng"));
                 destination = cursor.getString(cursor.getColumnIndex("destination"));
                 destLatLng = cursor.getString(cursor.getColumnIndex("destinationLatLng"));
